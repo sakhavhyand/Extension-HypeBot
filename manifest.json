@@ -1,5 +1,5 @@
 {
-    "display_name": "HypeBot",
+    "display_name": "ReactBot",
     "loading_order": 1000,
     "requires": [],
     "optional": [],
@@ -7,6 +7,6 @@
     "css": "style.css",
     "author": "Rendal",
     "version": "1.0.0",
-    "homePage": "https://github.com/sakhavhyand/Extension-HypeBot",
+    "homePage": "https://github.com/sakhavhyand/SillyTavern-ReactBot",
     "auto_update": true
 }

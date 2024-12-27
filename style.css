@@ -1,4 +1,4 @@
-#hypeBotBar {
+#reactBotBar {
     width: 100%;
     max-width: 100%;
     padding: 0.5em;
@@ -7,11 +7,11 @@
     order: 20;
 }
 
-.hypebot_nokey {
+.reactbot_nokey {
     text-align: center;
     font-style: italic;
 }
 
-.hypebot_name {
+.ractbot_name {
     font-weight: 600;
 }

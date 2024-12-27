@@ -2,7 +2,7 @@ import { eventSource, event_types, is_send_press, saveSettingsDebounced, generat
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
 import { debounce } from '../../../utils.js';
 
-const MODULE_NAME = 'third-party/Extension-HypeBot';
+const MODULE_NAME = 'third-party/SillyTavern-ReactBot';
 const WAITING_VERBS = ['thinking', 'typing', 'brainstorming', 'cooking', 'conjuring', 'reflecting', 'meditating', 'contemplating'];
 const EMPTY_VERBS = [
     'is counting the sheep',
@@ -14,8 +14,8 @@ const EMPTY_VERBS = [
 const MAX_PROMPT = 1024;
 const MAX_LENGTH = 50;
 const MAX_STRING_LENGTH = MAX_PROMPT * 4;
-const generateDebounced = debounce(() => generateHypeBot(), 500);
-let hypeBotBar, abortController;
+const generateDebounced = debounce(() => generateReactBot(), 500);
+let reactBotBar, abortController;
 
 const settings = {
     enabled: false,
@@ -51,48 +51,48 @@ function getVerb(text) {
 }
 
 /**
- * Formats the HypeBot reply text
- * @param {string} text HypeBot output text
+ * Formats the ReactBot reply text
+ * @param {string} text ReactBot output text
  * @returns {string} Formatted HTML text
  */
 function formatReply(text) {
-    return `<span class="hypebot_name">${settings.name} ${getVerb(text)}:</span>&nbsp;<span class="hypebot_text">${text}</span>`;
+    return `<span class="ractbot_name">${settings.name} ${getVerb(text)}:</span>&nbsp;<span class="reactbot_text">${text}</span>`;
 }
 
 /**
- * Sets the HypeBot text. Preserves scroll position of the chat.
+ * Sets the ReactBot text. Preserves scroll position of the chat.
  * @param {string} text Text to set
  */
-function setHypeBotText(text) {
+function setReactBotText(text) {
     const chatBlock = $('#chat');
     const originalScrollBottom = chatBlock[0].scrollHeight - (chatBlock.scrollTop() + chatBlock.outerHeight());
-    hypeBotBar.html(DOMPurify.sanitize(text));
+    reactBotBar.html(DOMPurify.sanitize(text));
     const newScrollTop = chatBlock[0].scrollHeight - (chatBlock.outerHeight() + originalScrollBottom);
     chatBlock.scrollTop(newScrollTop);
 }
 
 /**
- * Called when a chat event occurs to generate a HypeBot reply.
- * @param {boolean} clear Clear the hypebot bar.
+ * Called when a chat event occurs to generate a ReactBot reply.
+ * @param {boolean} clear Clear the reactbot bar.
  */
 function onChatEvent(clear) {
     if (clear) {
-        setHypeBotText('');
+        setReactBotText('');
     }
     abortController?.abort();
     generateDebounced();
 }
 
 /**
- * Generates a HypeBot reply.
+ * Generates a ReactBot reply.
  */
-async function generateHypeBot() {
+async function generateReactBot() {
     if (!settings.enabled || is_send_press) {
         return;
     }
 
-    console.debug('Generating HypeBot reply');
-    setHypeBotText(`<span class="hypebot_name">${settings.name}</span> is ${getWaitingVerb()}...`);
+    console.debug('Generating ReactBot reply');
+    setReactBotText(`<span class="ractbot_name">${settings.name}</span> is ${getWaitingVerb()}...`);
 
     const context = getContext();
     const chat = context.chat.slice();
@@ -110,7 +110,7 @@ async function generateHypeBot() {
     }
 
     if (!prompt) {
-        setHypeBotText(`<span class="hypebot_name">${settings.name}</span> ${EMPTY_VERBS[Math.floor(Math.random() * EMPTY_VERBS.length)]}.`);
+        setReactBotText(`<span class="ractbot_name">${settings.name}</span> ${EMPTY_VERBS[Math.floor(Math.random() * EMPTY_VERBS.length)]}.`);
         return;
     }
     abortController = new AbortController();
@@ -118,40 +118,40 @@ async function generateHypeBot() {
     const response = await generateQuietPrompt(settings.prompt, false, true, null, settings.name, MAX_LENGTH);
 
     if (!response) {
-        setHypeBotText('<div class="hypebot_error">Something went wrong while generating a HypeBot reply. Please try again.</div>');
+        setReactBotText('<div class="reactbot_error">Something went wrong while generating a ReactBot reply. Please try again.</div>');
         return;
     }
-    setHypeBotText(formatReply(response));
+    setReactBotText(formatReply(response));
 }
 
 jQuery(async () => {
-    if (!extension_settings.hypebot) {
-        extension_settings.hypebot = settings;
+    if (!extension_settings.reactbot) {
+        extension_settings.reactbot = settings;
     }
 
-    Object.assign(settings, extension_settings.hypebot);
-    const getContainer = () => $(document.getElementById('hypebot_container') ?? document.getElementById('extensions_settings2'));
+    Object.assign(settings, extension_settings.reactbot);
+    const getContainer = () => $(document.getElementById('reactbot_container') ?? document.getElementById('extensions_settings2'));
     getContainer().append(await renderExtensionTemplateAsync(MODULE_NAME, 'settings'));
-    hypeBotBar = $('<div id="hypeBotBar"></div>').toggle(settings.enabled);
-    $('#send_form').append(hypeBotBar);
+    reactBotBar = $('<div id="reactBotBar"></div>').toggle(settings.enabled);
+    $('#send_form').append(reactBotBar);
 
-    $('#hypebot_enabled').prop('checked', settings.enabled).on('input', () => {
-        settings.enabled = $('#hypebot_enabled').prop('checked');
-        hypeBotBar.toggle(settings.enabled);
+    $('#reactbot_enabled').prop('checked', settings.enabled).on('input', () => {
+        settings.enabled = $('#reactbot_enabled').prop('checked');
+        reactBotBar.toggle(settings.enabled);
         abortController?.abort();
-        Object.assign(extension_settings.hypebot, settings);
+        Object.assign(extension_settings.reactbot, settings);
         saveSettingsDebounced();
     });
 
-    $('#hypebot_name').val(settings.name).on('input', () => {
-        settings.name = String($('#hypebot_name').val());
-        Object.assign(extension_settings.hypebot, settings);
+    $('#reactbot_name').val(settings.name).on('input', () => {
+        settings.name = String($('#reactbot_name').val());
+        Object.assign(extension_settings.reactbot, settings);
         saveSettingsDebounced();
     });
 
-    $('#hypebot_prompt').val(settings.prompt).on('input', () => {
-        settings.prompt = String($('#hypebot_prompt').val());
-        Object.assign(extension_settings.hypebot, settings);
+    $('#reactbot_prompt').val(settings.prompt).on('input', () => {
+        settings.prompt = String($('#reactbot_prompt').val());
+        Object.assign(extension_settings.reactbot, settings);
         saveSettingsDebounced();
     });
 
