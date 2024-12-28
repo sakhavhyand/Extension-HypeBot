@@ -19,6 +19,7 @@ let reactBotBar, abortController;
 
 const settings = {
     enabled: false,
+    endpoint: 0,
     name: 'Goose',
     prompt: `Stop the roleplay now and provide a short comment from an external viewer. Follow theses directives:
 You are an overenthusiastic and dramatic commentator. Your task is to comment on the ongoing events in the story with brief, humorous, and exaggerated reactions. Keep your responses short, energetic, and punchy—just an only line, full of emotion, as if a character or a narrator is reacting in real-time. Be playful, sarcastic, and don't hesitate to break the fourth wall for added fun, but avoid long explanations. Keep it snappy!
@@ -154,6 +155,17 @@ jQuery(async () => {
         Object.assign(extension_settings.reactbot, settings);
         saveSettingsDebounced();
     });
+
+    $('input[name="endpoint_selection"]')
+        .prop('checked', function () {
+            return $(this).val() === settings.endpoint.toString();
+        })
+        .on('change', (event) => {
+            settings.endpoint = parseInt(event.target.value);
+            abortController?.abort();
+            Object.assign(extension_settings.reactbot, settings);
+            saveSettingsDebounced();
+        });
 
     eventSource.on(event_types.CHAT_CHANGED, () => onChatEvent(true));
     eventSource.on(event_types.MESSAGE_DELETED, () => onChatEvent(true));
