@@ -1,6 +1,9 @@
-import { eventSource, event_types, is_send_press, saveSettingsDebounced, generateQuietPrompt } from '../../../../script.js';
+import { eventSource, event_types, getRequestHeaders, is_send_press, saveSettingsDebounced, generateQuietPrompt } from '../../../../script.js';
 import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
-import { debounce } from '../../../utils.js';
+import { SECRET_KEYS, secret_state } from '../../../secrets.js';
+import { collapseNewlines } from '../../../power-user.js';
+import { bufferToBase64, debounce } from '../../../utils.js';
+import { decodeTextTokens, getTextTokens, tokenizers } from '../../../tokenizers.js';
 
 const MODULE_NAME = 'third-party/SillyTavern-ReactBot';
 const WAITING_VERBS = ['thinking', 'typing', 'brainstorming', 'cooking', 'conjuring', 'reflecting', 'meditating', 'contemplating'];
@@ -22,7 +25,7 @@ const settings = {
     endpoint: 0,
     name: 'Goose',
     prompt: `Stop the roleplay now and provide a short comment from an external viewer. Follow theses directives:
-You are an overenthusiastic and dramatic commentator. Your task is to comment on the ongoing events in the story with brief, humorous, and exaggerated reactions. Keep your responses short, energetic, and punchy—just an only line, full of emotion, as if a character or a narrator is reacting in real-time. Be playful, sarcastic, and don't hesitate to break the fourth wall for added fun, but avoid long explanations. Keep it snappy!
+You are an overenthusiastic and dramatic commentator. Your task is to comment on the ongoing events in the story with brief, humorous, and exaggerated reactions. Keep your responses short, energetic, and punchy, as if a character or a narrator is reacting in real-time. Be playful, sarcastic, and don't hesitate to break the fourth wall for added fun, but avoid long explanations. Keep it snappy!
 
 Do not include any other content in your response.`,
 };
@@ -92,6 +95,11 @@ async function generateReactBot() {
         return;
     }
 
+    if (!secret_state[SECRET_KEYS.NOVEL] && settings.endpoint === 0) {
+        setReactBotText('<div class="reactbot_nokey">No API key found. Please enter your API key in the NovelAI API Settings to use the ReactBot.</div>');
+        return;
+    }
+
     console.debug('Generating ReactBot reply');
     setReactBotText(`<span class="ractbot_name">${settings.name}</span> is ${getWaitingVerb()}...`);
 
@@ -110,19 +118,74 @@ async function generateReactBot() {
         }
     }
 
+    prompt = collapseNewlines(prompt.replaceAll(/[*[\]{}]/g, ''));
     if (!prompt) {
-        setReactBotText(`<span class="ractbot_name">${settings.name}</span> ${EMPTY_VERBS[Math.floor(Math.random() * EMPTY_VERBS.length)]}.`);
+        setReactBotText(`<span class="reactbot_name">${settings.name}</span> ${EMPTY_VERBS[Math.floor(Math.random() * EMPTY_VERBS.length)]}.`);
         return;
     }
     abortController = new AbortController();
 
-    const response = await generateQuietPrompt(settings.prompt, false, true, null, settings.name, MAX_LENGTH);
-
-    if (!response) {
-        setReactBotText('<div class="reactbot_error">Something went wrong while generating a ReactBot reply. Please try again.</div>');
-        return;
+    if(settings.endpoint === 1) {
+        const response = await generateQuietPrompt(settings.prompt, false, true, null, settings.name, MAX_LENGTH);
+        if (!response) {
+            setReactBotText('<div class="reactbot_error">Something went wrong while generating a ReactBot reply. Please try again.</div>');
+            return;
+        }
+        setReactBotText(formatReply(response));
     }
-    setReactBotText(formatReply(response));
+    else {
+        const sliceLength = MAX_PROMPT - MAX_LENGTH;
+        const encoded = getTextTokens(tokenizers.GPT2, prompt).slice(-sliceLength);
+
+        // Add a stop string token to the end of the prompt
+        encoded.push(49527);
+
+        const base64String = await bufferToBase64(new Uint16Array(encoded).buffer);
+        const parameters = {
+            input: base64String,
+            model: 'hypebot',
+            streaming: false,
+            temperature: 1,
+            max_length: MAX_LENGTH,
+            min_length: 1,
+            top_k: 0,
+            top_p: 1,
+            tail_free_sampling: 0.95,
+            repetition_penalty: 1,
+            repetition_penalty_range: 2048,
+            repetition_penalty_slope: 0.18,
+            repetition_penalty_frequency: 0,
+            repetition_penalty_presence: 0,
+            phrase_rep_pen: 'off',
+            bad_words_ids: [],
+            stop_sequences: [[48585]],
+            generate_until_sentence: true,
+            use_cache: false,
+            use_string: false,
+            return_full_text: false,
+            prefix: 'vanilla',
+            logit_bias_exp: [],
+            order: [0, 1, 2, 3],
+        };
+
+        abortController = new AbortController();
+        const response = await fetch('/api/novelai/generate', {
+            headers: getRequestHeaders(),
+            body: JSON.stringify(parameters),
+            method: 'POST',
+            signal: abortController.signal,
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const ids = Array.from(new Uint16Array(Uint8Array.from(atob(data.output), c => c.charCodeAt(0)).buffer));
+            const tokens = decodeTextTokens(tokenizers.GPT2, ids);
+            const output = (typeof tokens === 'string' ? tokens : tokens.text).replace(/�/g, '').trim();
+            setReactBotText(formatReply(output));
+        } else {
+            setReactBotText('<div class="reactbot_error">Something went wrong while generating a ReactBot reply. Please try again.</div>');
+        }
+    }
 }
 
 jQuery(async () => {
@@ -150,7 +213,9 @@ jQuery(async () => {
         saveSettingsDebounced();
     });
 
-    $('#reactbot_prompt').val(settings.prompt).on('input', () => {
+    $('#reactbot_prompt').val(settings.prompt)
+        .prop('disabled', settings.endpoint === 0)
+        .on('input', () => {
         settings.prompt = String($('#reactbot_prompt').val());
         Object.assign(extension_settings.reactbot, settings);
         saveSettingsDebounced();
@@ -162,6 +227,7 @@ jQuery(async () => {
         })
         .on('change', (event) => {
             settings.endpoint = parseInt(event.target.value);
+            $('#reactbot_prompt').prop('disabled', settings.endpoint === 0);
             abortController?.abort();
             Object.assign(extension_settings.reactbot, settings);
             saveSettingsDebounced();
