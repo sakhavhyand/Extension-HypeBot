@@ -1,9 +1,9 @@
-import { eventSource, event_types, getRequestHeaders, is_send_press, saveSettingsDebounced, generateQuietPrompt } from '../../../../script.js';
-import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../extensions.js';
-import { SECRET_KEYS, secret_state } from '../../../secrets.js';
-import { collapseNewlines } from '../../../power-user.js';
-import { bufferToBase64, debounce } from '../../../utils.js';
-import { decodeTextTokens, getTextTokens, tokenizers } from '../../../tokenizers.js';
+import { eventSource, event_types, getRequestHeaders, is_send_press, saveSettingsDebounced, generateQuietPrompt } from '../../../../../script.js';
+import { extension_settings, getContext, renderExtensionTemplateAsync } from '../../../../extensions.js';
+import { SECRET_KEYS, secret_state } from '../../../../secrets.js';
+import { collapseNewlines } from '../../../../power-user.js';
+import { bufferToBase64, debounce } from '../../../../utils.js';
+import { decodeTextTokens, getTextTokens, tokenizers } from '../../../../tokenizers.js';
 
 const MODULE_NAME = 'third-party/SillyTavern-ReactBot';
 const WAITING_VERBS = ['thinking', 'typing', 'brainstorming', 'cooking', 'conjuring', 'reflecting', 'meditating', 'contemplating'];

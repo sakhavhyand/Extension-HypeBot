@@ -3,7 +3,7 @@
     "loading_order": 1000,
     "requires": [],
     "optional": [],
-    "js": "index.js",
+    "js": "dist/index.js",
     "css": "style.css",
     "author": "Rendal",
     "version": "1.0.0",
