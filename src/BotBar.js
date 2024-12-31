@@ -41,6 +41,19 @@ function BotBar() {
     const [reactBotText, setReactBotText] = useState("");
     const eventSource = SillyTavern.getContext().eventSource;
     const event_types = SillyTavern.getContext().eventTypes;
+    const WAITING_VERBS = ['thinking', 'typing', 'brainstorming', 'cooking', 'conjuring', 'reflecting', 'meditating', 'contemplating'];
+    const EMPTY_VERBS = [
+        'is counting the sheep',
+        'admires the stars',
+        'is waiting patiently',
+        'is looking for inspiration',
+        'is thinking about the meaning of life',
+    ];
+    const MAX_PROMPT = 1024;
+    const MAX_LENGTH = 50;
+    const MAX_STRING_LENGTH = MAX_PROMPT * 4;
+    const generateDebounced = debounce(() => generateReactBot(), 500);
+    let abortController;
 
 
     useEffect(() => {
@@ -70,20 +83,6 @@ function BotBar() {
         });
 
     }, [settings, eventSource, event_types]);
-
-    const WAITING_VERBS = ['thinking', 'typing', 'brainstorming', 'cooking', 'conjuring', 'reflecting', 'meditating', 'contemplating'];
-    const EMPTY_VERBS = [
-        'is counting the sheep',
-        'admires the stars',
-        'is waiting patiently',
-        'is looking for inspiration',
-        'is thinking about the meaning of life',
-    ];
-    const MAX_PROMPT = 1024;
-    const MAX_LENGTH = 50;
-    const MAX_STRING_LENGTH = MAX_PROMPT * 4;
-    const generateDebounced = debounce(() => generateReactBot(), 500);
-    let abortController;
 
     /**
      * Returns a random waiting verb
