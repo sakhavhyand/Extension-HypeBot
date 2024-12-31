@@ -102,8 +102,7 @@ async function generateReactBot() {
         return;
     }
 
-    console.debug('Generating ReactBot reply');
-    setReactBotText(`<span class="ractbot_name">${settings.name}</span> is ${getWaitingVerb()}...`);
+    setReactBotText(`<span class="reactbot_name">${settings.name}</span> is ${getWaitingVerb()}...`);
 
     const prompt = buildPrompt();
     if (!prompt) {
