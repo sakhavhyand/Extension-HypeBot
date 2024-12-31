@@ -1,6 +1,5 @@
 /* global SillyTavern */
-import { useEffect } from "react";
-import DOMPurify from 'dompurify';
+import { useEffect, useState } from 'react';
 import { useSettings } from './ContextManager';
 
 async function importFromScript(what) {
@@ -38,39 +37,39 @@ const getTextTokens = await importFromTokenizers('getTextTokens');
 function BotBar() {
 
     const { settings } = useSettings();
+
+    const [reactBotText, setReactBotText] = useState("");
     const eventSource = SillyTavern.getContext().eventSource;
     const event_types = SillyTavern.getContext().eventTypes;
 
+
     useEffect(() => {
-        // const subscribeToEvents = () => {
-            eventSource.on(event_types.CHAT_CHANGED, () => onChatEvent(true));
-            eventSource.on(event_types.MESSAGE_DELETED, () => onChatEvent(true));
-            eventSource.on(event_types.MESSAGE_EDITED, () => onChatEvent(true));
-            eventSource.on(event_types.MESSAGE_SENT, () => onChatEvent(false));
-            eventSource.on(event_types.MESSAGE_RECEIVED, () => onChatEvent(false));
-            eventSource.on(event_types.MESSAGE_SWIPED, () => onChatEvent(false));
-        // };
+        eventSource.on(event_types.CHAT_CHANGED, () => {
+            console.debug("DEBUG-Event CHAT_CHANGED detected");
+            onChatEvent(true);
+        });
+        eventSource.on(event_types.MESSAGE_DELETED, () => {
+            console.debug("DEBUG-Event MESSAGE_DELETED detected");
+            onChatEvent(true);
+        });
+        eventSource.on(event_types.MESSAGE_EDITED, () => {
+            console.debug("DEBUG-Event MESSAGE_EDITED detected");
+            onChatEvent(true);
+        });
+        eventSource.on(event_types.MESSAGE_SENT, () => {
+            console.debug("DEBUG-Event MESSAGE_SENT detected");
+            onChatEvent(false);
+        });
+        eventSource.on(event_types.MESSAGE_RECEIVED, () => {
+            console.debug("DEBUG-Event MESSAGE_RECEIVED detected");
+            onChatEvent(false);
+        });
+        eventSource.on(event_types.MESSAGE_SWIPED, () => {
+            console.debug("DEBUG-Event MESSAGE_SWIPED detected");
+            onChatEvent(false);
+        });
 
-        // const unsubscribeFromEvents = () => {
-        //     eventSource.off(event_types.CHAT_CHANGED, onChatEvent);
-        //     eventSource.off(event_types.MESSAGE_DELETED, onChatEvent);
-        //     eventSource.off(event_types.MESSAGE_EDITED, onChatEvent);
-        //     eventSource.off(event_types.MESSAGE_SENT, onChatEvent);
-        //     eventSource.off(event_types.MESSAGE_RECEIVED, onChatEvent);
-        //     eventSource.off(event_types.MESSAGE_SWIPED, onChatEvent);
-        // };
-
-        // if (settings.enabled) {
-        //     subscribeToEvents();
-        // }
-        // else {
-        //     unsubscribeFromEvents();
-        // }
-
-        // return () => {
-        //     unsubscribeFromEvents();
-        // };
-    }, []);
+    }, [settings, eventSource, event_types]);
 
     const WAITING_VERBS = ['thinking', 'typing', 'brainstorming', 'cooking', 'conjuring', 'reflecting', 'meditating', 'contemplating'];
     const EMPTY_VERBS = [
@@ -84,7 +83,7 @@ function BotBar() {
     const MAX_LENGTH = 50;
     const MAX_STRING_LENGTH = MAX_PROMPT * 4;
     const generateDebounced = debounce(() => generateReactBot(), 500);
-    let reactBotBar, abortController;
+    let abortController;
 
     /**
      * Returns a random waiting verb
@@ -123,19 +122,39 @@ function BotBar() {
             const match = text.match(/.*[.!?]/s);
             text = match ? match[0] : '';
         }
-        return `<span class="ractbot_name">${settings.name} ${getVerb(text)}:</span>&nbsp;<span class="reactbot_text">${text}</span>`;
+        return `<span class="reactbot_name">${settings.name} ${getVerb(text)}:</span>&nbsp;<span class="reactbot_text">${text}</span>`;
     }
 
     /**
      * Sets the ReactBot text. Preserves scroll position of the chat.
      * @param {string} text Text to set
      */
-    function setReactBotText(text) {
-        const chatBlock = document.getElementById('chat');
-        const originalScrollBottom = chatBlock[0].scrollHeight - (chatBlock.scrollTop() + chatBlock.outerHeight());
-        reactBotBar.html(DOMPurify.sanitize(text));
-        const newScrollTop = chatBlock[0].scrollHeight - (chatBlock.outerHeight() + originalScrollBottom);
-        chatBlock.scrollTop(newScrollTop);
+    function setBotText(text) {
+        function onChatElementReady(callback) {
+            const chatBlock = document.getElementById('chat');
+            if (chatBlock) {
+                callback(chatBlock);
+                return;
+            }
+            const observer = new MutationObserver(() => {
+                const chatBlock = document.getElementById('chat');
+                if (chatBlock) {
+                    observer.disconnect();
+                    callback(chatBlock);
+                }
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+        }
+
+        onChatElementReady(chatBlock => {
+            try {
+                const originalScrollBottom = chatBlock.scrollHeight - (chatBlock.scrollTop + chatBlock.offsetHeight);
+                setReactBotText(text);
+                chatBlock.scrollTop = chatBlock.scrollHeight - (chatBlock.offsetHeight + originalScrollBottom);
+            } catch (error) {
+                console.error("Une erreur s'est produite en manipulant l'élément #chat :", error);
+            }
+        });
     }
 
     /**
@@ -144,7 +163,7 @@ function BotBar() {
      */
     function onChatEvent(clear) {
         if (clear) {
-            setReactBotText('');
+            setBotText('');
         }
         abortController?.abort();
         generateDebounced();
@@ -158,12 +177,11 @@ function BotBar() {
             return;
         }
 
-        console.debug('Generating ReactBot reply');
-        setReactBotText(`<span class="ractbot_name">${settings.name}</span> is ${getWaitingVerb()}...`);
+        setBotText(`<span class="ractbot_name">${settings.name}</span> is ${getWaitingVerb()}...`);
 
         const prompt = buildPrompt();
         if (!prompt) {
-            setReactBotText(`<span class="reactbot_name">${settings.name}</span> ${EMPTY_VERBS[Math.floor(Math.random() * EMPTY_VERBS.length)]}.`);
+            setBotText(`<span class="reactbot_name">${settings.name}</span> ${EMPTY_VERBS[Math.floor(Math.random() * EMPTY_VERBS.length)]}.`);
             return;
         }
 
@@ -183,7 +201,7 @@ function BotBar() {
                 ? formatReply(response)
                 : processNovelAIdResponse(await response.json());
 
-            setReactBotText(formattedResponse);
+            setBotText(formattedResponse);
         } catch (error) {
             setErrorText('Something went wrong while generating a ReactBot reply. Please try again.');
         }
@@ -296,13 +314,14 @@ function BotBar() {
      * @return {void}
      */
     function setErrorText(message) {
-        setReactBotText(`<div class="reactbot_error">${message}</div>`);
+        setBotText(`<div class="reactbot_error">${message}</div>`);
     }
 
     return (
         <div
             id="reactBotBar"
             style={{ display: settings.enabled ? "block" : "none" }}
+            dangerouslySetInnerHTML={{ __html: reactBotText }}
         >
         </div>
     );
